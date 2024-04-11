@@ -154,54 +154,35 @@ contract LivenessModule_CanRemove_Test is LivenessModule_TestInit {
 }
 
 contract LivenessModule_GetRequiredThreshold_Test is LivenessModule_TestInit {
-    /// @dev check the return values of the getRequiredThreshold function against manually
-    ///      calculated values, with 75% threshold.
-    function test_getRequiredThreshold75_works() external {
-        assertEq(_getRequiredThreshold(20, 75), 15);
-        assertEq(_getRequiredThreshold(19, 75), 15);
-        assertEq(_getRequiredThreshold(18, 75), 14);
-        assertEq(_getRequiredThreshold(17, 75), 13);
-        assertEq(_getRequiredThreshold(16, 75), 12);
-        assertEq(_getRequiredThreshold(15, 75), 12);
-        assertEq(_getRequiredThreshold(14, 75), 11);
-        assertEq(_getRequiredThreshold(13, 75), 10);
-        assertEq(_getRequiredThreshold(12, 75), 9);
-        assertEq(_getRequiredThreshold(11, 75), 9);
-        assertEq(_getRequiredThreshold(10, 75), 8);
-        assertEq(_getRequiredThreshold(9, 75), 7);
-        assertEq(_getRequiredThreshold(8, 75), 6);
-        assertEq(_getRequiredThreshold(7, 75), 6);
-        assertEq(_getRequiredThreshold(6, 75), 5);
-        assertEq(_getRequiredThreshold(5, 75), 4);
-        assertEq(_getRequiredThreshold(4, 75), 3);
-        assertEq(_getRequiredThreshold(3, 75), 3);
-        assertEq(_getRequiredThreshold(2, 75), 2);
-        assertEq(_getRequiredThreshold(1, 75), 1);
+    /// @dev Tests if getRequiredThreshold work correctly by implementing the same logic in a different manner
+    function _getLeastIntegerValueAbovePercentage(
+        uint256 _total,
+        uint256 _percentage
+    )
+        internal
+        pure
+        returns (uint256)
+    {
+        require(_percentage > 0 && _percentage <= 100);
+        uint256 toAdd;
+
+        // If the total multiplied by the percentage is not divisible by 100, we need to add 1 to the result to
+        // compensate for the rounding down by integer division.
+        if ((_total * _percentage) % 100 > 0) {
+            toAdd = 1;
+        }
+        return (_total * _percentage) / 100 + toAdd;
     }
 
-    /// @dev check the return values of the getRequiredThreshold function against manually
-    ///      calculated values, with 33% threshold.
-    function test_getRequiredThreshold33_works() external {
-        assertEq(_getRequiredThreshold(20, 33), 15);
-        assertEq(_getRequiredThreshold(19, 33), 15);
-        assertEq(_getRequiredThreshold(18, 33), 14);
-        assertEq(_getRequiredThreshold(17, 33), 13);
-        assertEq(_getRequiredThreshold(16, 33), 12);
-        assertEq(_getRequiredThreshold(15, 33), 12);
-        assertEq(_getRequiredThreshold(14, 33), 11);
-        assertEq(_getRequiredThreshold(13, 33), 10);
-        assertEq(_getRequiredThreshold(12, 33), 9);
-        assertEq(_getRequiredThreshold(11, 33), 9);
-        assertEq(_getRequiredThreshold(10, 33), 8);
-        assertEq(_getRequiredThreshold(9, 33), 7);
-        assertEq(_getRequiredThreshold(8, 33), 6);
-        assertEq(_getRequiredThreshold(7, 33), 6);
-        assertEq(_getRequiredThreshold(6, 33), 5);
-        assertEq(_getRequiredThreshold(5, 33), 4);
-        assertEq(_getRequiredThreshold(4, 33), 3);
-        assertEq(_getRequiredThreshold(3, 33), 3);
-        assertEq(_getRequiredThreshold(2, 33), 2);
-        assertEq(_getRequiredThreshold(1, 33), 1);
+    /// @dev Differentially tests the getRequiredThreshold function against _getLeastIntegerValueAbovePercentage
+    function testFuzz_getRequiredThreshold_works(uint256 _numOwners, uint256 _percentage) external {
+        // Enforce valid percentages
+        uint256 percentage = bound(_percentage, 1, 100);
+        // Enforce a sane number of owners to keep runtime in check
+        uint256 numOwners = bound(_numOwners, 1, 100);
+        assertEq(
+            _getRequiredThreshold(numOwners, percentage), _getLeastIntegerValueAbovePercentage(numOwners, percentage)
+        );
     }
 }
 
