@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.15;
 
-import { CommonTest } from "test/setup/CommonTest.sol";
+import { CommonTest, Abi, getL1ContractFunctionAbis } from "test/setup/CommonTest.sol";
 import { Safe } from "safe-contracts/Safe.sol";
 import "test/safe-tools/SafeTestTools.sol";
 
@@ -242,5 +242,21 @@ contract DeputyGuardianModule_setRespectedGameType_TestFail is DeputyGuardianMod
             )
         );
         deputyGuardianModule.setRespectedGameType(optimismPortal2, gameType);
+    }
+}
+
+contract DeputyGuardianModule_NoPortalCollisions_Test is DeputyGuardianModule_TestInit {
+    function test_noPortalCollisions_succeeds() external {
+        Abi[] memory abis = getL1ContractFunctionAbis();
+        for (uint256 i; i < abis.length; i++) {
+            for (uint256 j; j < abis[i].entries.length; j++) {
+                bytes4 sel = abis[i].entries[j].sel;
+                console.log("sel:");
+                console.logBytes4(sel);
+                console.log("fname:", abis[i].entries[j].fnName);
+                assertNotEq(sel, optimismPortal2.blacklistDisputeGame.selector);
+                assertNotEq(sel, optimismPortal2.setRespectedGameType.selector);
+            }
+        }
     }
 }
