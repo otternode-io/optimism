@@ -29,8 +29,8 @@ config=$(cat << EOL
 {
   "l1StartingBlockTag": "$blockhash",
 
-  "l1ChainID": 11155111,
-  "l2ChainID": 42069,
+  "l1ChainID": 8899,
+  "l2ChainID": 889901,
   "l2BlockTime": 2,
   "l1BlockTime": 12,
 
@@ -49,7 +49,7 @@ config=$(cat << EOL
   "l2OutputOracleProposer": "$GS_PROPOSER_ADDRESS",
   "l2OutputOracleChallenger": "$GS_ADMIN_ADDRESS",
 
-  "finalizationPeriodSeconds": 12,
+  "finalizationPeriodSeconds": 60,
 
   "proxyAdminOwner": "$GS_ADMIN_ADDRESS",
   "baseFeeVaultRecipient": "$GS_ADMIN_ADDRESS",
@@ -85,20 +85,30 @@ config=$(cat << EOL
   "l2GenesisCanyonTimeOffset": "0x0",
 
   "systemConfigStartBlock": 0,
-
   "requiredProtocolVersion": "0x0000000000000000000000000000000000000000000000000000000000000000",
   "recommendedProtocolVersion": "0x0000000000000000000000000000000000000000000000000000000000000000",
-
   "faultGameAbsolutePrestate": "0x03c7ae758795765c6664a5d39bf63841c71ff191e9189522bad8ebff5d4eca98",
-  "faultGameMaxDepth": 44,
+  "faultGameMaxDepth": 50,
   "faultGameClockExtension": 0,
-  "faultGameMaxClockDuration": 600,
+  "faultGameMaxClockDuration": 1200,
   "faultGameGenesisBlock": 0,
-  "faultGameGenesisOutputRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "faultGameGenesisOutputRoot": "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
   "faultGameSplitDepth": 14,
-
-  "preimageOracleMinProposalSize": 1800000,
-  "preimageOracleChallengePeriod": 86400
+  "faultGameWithdrawalDelay": 604800,
+  "preimageOracleMinProposalSize": 10000,
+  "preimageOracleChallengePeriod": 120,
+  "proofMaturityDelaySeconds": 12,
+  "disputeGameFinalityDelaySeconds": 6,
+  "respectedGameType": 0,
+  "useFaultProofs": false,
+  "usePlasma": true,
+  "daChallengeWindow": 160,
+  "daResolveWindow": 160,
+  "daBondSize": 1000000,
+  "daResolverRefundPercentage": 0,
+  "fundDevAccounts": false,
+  "useCustomGasToken": true,
+  "customGasTokenAddress": "0x027B63f79Af3C3192C43ddC7C30F84de16689bff"
 }
 EOL
 )
