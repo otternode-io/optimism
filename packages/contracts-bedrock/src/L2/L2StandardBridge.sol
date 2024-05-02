@@ -85,6 +85,7 @@ contract L2StandardBridge is StandardBridge, ISemver {
     /// @notice Initiates a withdrawal from L2 to L1.
     ///         This function only works with OptimismMintableERC20 tokens or ether. Use the
     ///         `bridgeERC20` function to bridge native L2 tokens to L1.
+    ///         Subject to be deprecated in the future.
     /// @param _l2Token     Address of the L2 token to withdraw.
     /// @param _amount      Amount of the L2 token to withdraw.
     /// @param _minGasLimit Minimum gas limit to use for the transaction.
@@ -100,6 +101,7 @@ contract L2StandardBridge is StandardBridge, ISemver {
         virtual
         onlyEOA
     {
+        require(isCustomGasToken() == false, "L2StandardBridge: not supported with custom gas token");
         _initiateWithdrawal(_l2Token, msg.sender, msg.sender, _amount, _minGasLimit, _extraData);
     }
 
@@ -111,6 +113,7 @@ contract L2StandardBridge is StandardBridge, ISemver {
     ///         call will fail for any amount of gas, then the ETH will be locked permanently.
     ///         This function only works with OptimismMintableERC20 tokens or ether. Use the
     ///         `bridgeERC20To` function to bridge native L2 tokens to L1.
+    ///         Subject to be deprecated in the future.
     /// @param _l2Token     Address of the L2 token to withdraw.
     /// @param _to          Recipient account on L1.
     /// @param _amount      Amount of the L2 token to withdraw.
@@ -127,12 +130,14 @@ contract L2StandardBridge is StandardBridge, ISemver {
         payable
         virtual
     {
+        require(isCustomGasToken() == false, "L2StandardBridge: not supported with custom gas token");
         _initiateWithdrawal(_l2Token, msg.sender, _to, _amount, _minGasLimit, _extraData);
     }
 
     /// @custom:legacy
     /// @notice Finalizes a deposit from L1 to L2. To finalize a deposit of ether, use address(0)
     ///         and the l1Token and the Legacy ERC20 ether predeploy address as the l2Token.
+    ///         Subject to be deprecated in the future.
     /// @param _l1Token   Address of the L1 token to deposit.
     /// @param _l2Token   Address of the corresponding L2 token.
     /// @param _from      Address of the depositor.
@@ -151,6 +156,7 @@ contract L2StandardBridge is StandardBridge, ISemver {
         payable
         virtual
     {
+        require(isCustomGasToken() == false, "L2StandardBridge: not supported with custom gas token");
         if (_l1Token == address(0) && _l2Token == Predeploys.LEGACY_ERC20_ETH) {
             finalizeBridgeETH(_from, _to, _amount, _extraData);
         } else {
