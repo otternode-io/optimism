@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+
+# This script is used to generate the getting-started.json configuration file
+# used in the Getting Started quickstart guide on the docs site. Avoids the
+# need to have the getting-started.json committed to the repo since it's an
+# invalid JSON file when not filled in, which is annoying.
+
+reqenv() {
+    if [ -z "${!1}" ]; then
+        echo "Error: environment variable '$1' is undefined"
+        exit 1
+    fi
+}
+
+# Check required environment variables
+reqenv "GS_ADMIN_ADDRESS"
+reqenv "GS_BATCHER_ADDRESS"
+reqenv "GS_PROPOSER_ADDRESS"
+reqenv "GS_SEQUENCER_ADDRESS"
+reqenv "L1_RPC_URL"
+
+# Get the finalized block timestamp and hash
+#block=$(cast block finalized --rpc-url "$L1_RPC_URL")
+block=$(cast block  --rpc-url "$L1_RPC_URL")
+timestamp=$(echo "$block" | awk '/timestamp/ { print $2 }')
+blockhash=$(echo "$block" | awk '/hash/ { print $2 }')
+
+# Generate the config file
+config=$(cat << EOL
+{
+  "l1StartingBlockTag": "$blockhash",
+  "l1ChainID": 7,
+  "l2ChainID": 7001,
+  "l2BlockTime": 2,
+  "l1BlockTime": 10,
+  "maxSequencerDrift": 600,
+  "sequencerWindowSize": 3600,
+  "channelTimeout": 300,
+  "p2pSequencerAddress": "$GS_SEQUENCER_ADDRESS",
+  "batchInboxAddress": "0xff00000000000000000000000000000000007001",
+  "batchSenderAddress": "$GS_BATCHER_ADDRESS",
+  "cliqueSignerAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "l1UseClique": true,
+  "l2OutputOracleSubmissionInterval": 1800,
+  "l2OutputOracleStartingTimestamp": $timestamp,
+  "l2OutputOracleStartingBlockNumber": 0,
+  "l2OutputOracleProposer": "$GS_PROPOSER_ADDRESS",
+  "l2OutputOracleChallenger": "$GS_ADMIN_ADDRESS",
+  "l2GenesisBlockGasLimit": "0x11E1A300",
+  "baseFeeVaultRecipient": "$GS_ADMIN_ADDRESS",
+  "l1FeeVaultRecipient": "$GS_ADMIN_ADDRESS",
+  "sequencerFeeVaultRecipient": "$GS_ADMIN_ADDRESS",
+  "baseFeeVaultMinimumWithdrawalAmount": "0x8ac7230489e80000",
+  "l1FeeVaultMinimumWithdrawalAmount": "0x8ac7230489e80000",
+  "sequencerFeeVaultMinimumWithdrawalAmount": "0x8ac7230489e80000",
+  "baseFeeVaultWithdrawalNetwork": 0,
+  "l1FeeVaultWithdrawalNetwork": 0,
+  "sequencerFeeVaultWithdrawalNetwork": 0,
+  "proxyAdminOwner": "$GS_ADMIN_ADDRESS",
+  "finalSystemOwner": "$GS_ADMIN_ADDRESS",
+  "superchainConfigGuardian": "$GS_ADMIN_ADDRESS",
+  "finalizationPeriodSeconds": 180,
+  "fundDevAccounts": true,
+  "l2GenesisBlockBaseFeePerGas": "0x1",
+  "gasPriceOracleOverhead": 2100,
+  "gasPriceOracleScalar": 1000000,
+  "enableGovernance": true,
+  "governanceTokenSymbol": "NA",
+  "governanceTokenName": "NA",
+  "governanceTokenOwner": "$GS_ADMIN_ADDRESS",
+  "eip1559Denominator": 50,
+  "eip1559DenominatorCanyon": 250,
+  "eip1559Elasticity": 6,
+  "l1GenesisBlockTimestamp": "0x64c811bf",
+  "l2GenesisRegolithTimeOffset": "0x0",
+  "l2GenesisDeltaTimeOffset": null,
+  "l2GenesisCanyonTimeOffset": "0x0",
+  "systemConfigStartBlock": 0,
+  "requiredProtocolVersion": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "recommendedProtocolVersion": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "faultGameAbsolutePrestate": "0x03c7ae758795765c6664a5d39bf63841c71ff191e9189522bad8ebff5d4eca98",
+  "faultGameMaxDepth": 50,
+  "faultGameClockExtension": 0,
+  "faultGameMaxClockDuration": 1200,
+  "faultGameGenesisBlock": 0,
+  "faultGameGenesisOutputRoot": "0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+  "faultGameSplitDepth": 14,
+  "faultGameWithdrawalDelay": 604800,
+  "preimageOracleMinProposalSize": 10000,
+  "preimageOracleChallengePeriod": 120,
+  "proofMaturityDelaySeconds": 12,
+  "disputeGameFinalityDelaySeconds": 6,
+  "respectedGameType": 0,
+  "useFaultProofs": false,
+  "usePlasma": true,
+  "daChallengeWindow": 160,
+  "daResolveWindow": 160,
+  "daBondSize": 1000000,
+  "daResolverRefundPercentage": 0,
+  "useCustomGasToken": true,
+  "customGasTokenAddress": "0x715737e6F5191F2FfBd0bF90c8E7436cEe8F24bb"
+}
+EOL
+)
+
+# Write the config file
+echo "$config" > ../packages/contracts-bedrock/deploy-config/otter.json
