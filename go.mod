@@ -4,6 +4,8 @@ go 1.21
 
 require (
 	github.com/BurntSushi/toml v1.3.2
+	github.com/DataDog/zstd v1.5.2
+	github.com/andybalholm/brotli v1.1.0
 	github.com/btcsuite/btcd v0.24.0
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0
 	github.com/cockroachdb/pebble v0.0.0-20231018212520-f6cde3fc2fa4
@@ -11,7 +13,7 @@ require (
 	github.com/crate-crypto/go-kzg-4844 v0.7.0
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0
 	github.com/ethereum-optimism/go-ethereum-hdwallet v0.1.3
-	github.com/ethereum-optimism/superchain-registry/superchain v0.0.0-20240418160534-4156733e7232
+	github.com/ethereum-optimism/superchain-registry/superchain v0.0.0-20240510200259-4be7024d2ba7
 	github.com/ethereum/go-ethereum v1.13.15
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/go-chi/chi/v5 v5.0.12
@@ -55,7 +57,6 @@ require (
 )
 
 require (
-	github.com/DataDog/zstd v1.5.2 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/VictoriaMetrics/fastcache v1.12.1 // indirect
 	github.com/allegro/bigcache v1.2.1 // indirect
@@ -226,7 +227,7 @@ require (
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
-replace github.com/ethereum/go-ethereum v1.13.15 => github.com/ethereum-optimism/op-geth v1.101315.0-rc.1
+replace github.com/ethereum/go-ethereum => github.com/ethereum-optimism/op-geth v1.101315.1-rc.3
 
 //replace github.com/ethereum/go-ethereum v1.13.9 => ../op-geth
 
