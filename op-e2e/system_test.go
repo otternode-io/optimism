@@ -28,7 +28,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ethereum-optimism/optimism/op-bindings/bindings"
+	"github.com/ethereum-optimism/optimism/op-e2e/bindings"
 	"github.com/ethereum-optimism/optimism/op-e2e/config"
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils"
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils/geth"
@@ -1266,7 +1266,8 @@ func testFees(t *testing.T, cfg SystemConfig) {
 
 		scalar, err := gpoContract.Scalar(&bind.CallOpts{})
 		require.Nil(t, err, "reading gpo scalar")
-		require.Equal(t, scalar.Uint64(), cfg.DeployConfig.GasPriceOracleScalar, "wrong gpo scalar")
+		feeScalar := cfg.DeployConfig.FeeScalar()
+		require.Equal(t, scalar, new(big.Int).SetBytes(feeScalar[:]), "wrong gpo scalar")
 	} else {
 		_, err := gpoContract.Overhead(&bind.CallOpts{})
 		require.ErrorContains(t, err, "deprecated")

@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	legacybindings "github.com/ethereum-optimism/optimism/op-bindings/bindings"
 	"github.com/ethereum-optimism/optimism/op-chain-ops/crossdomain"
+	legacybindings "github.com/ethereum-optimism/optimism/op-e2e/bindings"
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils"
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils/challenger"
 	"github.com/ethereum-optimism/optimism/op-e2e/e2eutils/disputegame"
@@ -43,8 +43,9 @@ func TestGasPriceOracleFeeUpdates(t *testing.T) {
 	InitParallel(t)
 	// Define our values to set in the GasPriceOracle (we set them high to see if it can lock L2 or stop bindings
 	// from updating the prices once again.
-	overheadValue := abi.MaxUint256
-	scalarValue := abi.MaxUint256
+	overheadValue := new(big.Int).Set(abi.MaxUint256)
+	// Ensure the most significant byte is 0x00
+	scalarValue := new(big.Int).Rsh(new(big.Int).Set(abi.MaxUint256), 8)
 	var cancel context.CancelFunc
 
 	// Create our system configuration for L1/L2 and start it

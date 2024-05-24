@@ -5,6 +5,7 @@ import {
     DeployOwnership,
     SafeConfig,
     SecurityCouncilConfig,
+    GuardianConfig,
     DeputyGuardianModuleConfig,
     LivenessModuleConfig
 } from "scripts/DeployOwnership.s.sol";
@@ -29,16 +30,19 @@ contract DeployOwnershipTest is Test, DeployOwnership {
         run();
     }
 
+    /// @dev Helper function to make assertions on basic Safe config properties.
     function _checkSafeConfig(SafeConfig memory _safeConfig, Safe _safe) internal view {
         assertEq(_safe.getThreshold(), _safeConfig.threshold);
 
         address[] memory safeOwners = _safe.getOwners();
         assertEq(_safeConfig.owners.length, safeOwners.length);
+        assertFalse(_safe.isOwner(msg.sender));
         for (uint256 i = 0; i < safeOwners.length; i++) {
             assertEq(safeOwners[i], _safeConfig.owners[i]);
         }
     }
 
+    /// @dev Test the example Foundation Safe configuration.
     function test_exampleFoundationSafe() public {
         Safe foundationSafe = Safe(payable(mustGetAddress("FoundationSafe")));
         SafeConfig memory exampleFoundationConfig = _getExampleFoundationConfig();
@@ -46,6 +50,7 @@ contract DeployOwnershipTest is Test, DeployOwnership {
         _checkSafeConfig(exampleFoundationConfig, foundationSafe);
     }
 
+    /// @dev Test the example Security Council Safe configuration.
     function test_exampleSecurityCouncilSafe() public {
         Safe securityCouncilSafe = Safe(payable(mustGetAddress("SecurityCouncilSafe")));
         SecurityCouncilConfig memory exampleSecurityCouncilConfig = _getExampleCouncilConfig();
@@ -69,18 +74,10 @@ contract DeployOwnershipTest is Test, DeployOwnership {
         address livenessModule = mustGetAddress("LivenessModule");
         address deputyGuardianModule = mustGetAddress("DeputyGuardianModule");
         (address[] memory modules, address nextModule) =
-            ModuleManager(securityCouncilSafe).getModulesPaginated(SENTINEL_MODULES, 3);
-        assertEq(modules.length, 2);
+            ModuleManager(securityCouncilSafe).getModulesPaginated(SENTINEL_MODULES, 2);
+        assertEq(modules.length, 1);
         assertEq(modules[0], livenessModule);
-        assertEq(modules[1], deputyGuardianModule);
         assertEq(nextModule, SENTINEL_MODULES); // ensures there are no more modules in the list
-
-        // DeputyGuardianModule checks
-        DeputyGuardianModuleConfig memory dgmConfig = exampleSecurityCouncilConfig.deputyGuardianModuleConfig;
-        assertEq(DeputyGuardianModule(deputyGuardianModule).deputyGuardian(), dgmConfig.deputyGuardian);
-        assertEq(
-            address(DeputyGuardianModule(deputyGuardianModule).superchainConfig()), address(dgmConfig.superchainConfig)
-        );
 
         // LivenessModule checks
         LivenessModuleConfig memory lmConfig = exampleSecurityCouncilConfig.livenessModuleConfig;
@@ -91,5 +88,31 @@ contract DeployOwnershipTest is Test, DeployOwnership {
 
         // Ensure the threshold on the safe agrees with the LivenessModule's required threshold
         assertEq(securityCouncilSafe.getThreshold(), LivenessModule(livenessModule).getRequiredThreshold(owners.length));
+    }
+
+    /// @dev Test the example Guardian Safe configuration.
+    function test_exampleGuardianSafe() public {
+        Safe guardianSafe = Safe(payable(mustGetAddress("GuardianSafe")));
+        address[] memory owners = new address[](1);
+        owners[0] = mustGetAddress("SecurityCouncilSafe");
+        GuardianConfig memory guardianConfig = _getExampleGuardianConfig();
+        _checkSafeConfig(guardianConfig.safeConfig, guardianSafe);
+
+        // DeputyGuardianModule checks
+        address deputyGuardianModule = mustGetAddress("DeputyGuardianModule");
+        (address[] memory modules, address nextModule) =
+            ModuleManager(guardianSafe).getModulesPaginated(SENTINEL_MODULES, 2);
+        assertEq(modules.length, 1);
+        assertEq(modules[0], deputyGuardianModule);
+        assertEq(nextModule, SENTINEL_MODULES); // ensures there are no more modules in the list
+
+        assertEq(
+            DeputyGuardianModule(deputyGuardianModule).deputyGuardian(),
+            guardianConfig.deputyGuardianModuleConfig.deputyGuardian
+        );
+        assertEq(
+            address(DeputyGuardianModule(deputyGuardianModule).superchainConfig()),
+            address(guardianConfig.deputyGuardianModuleConfig.superchainConfig)
+        );
     }
 }
