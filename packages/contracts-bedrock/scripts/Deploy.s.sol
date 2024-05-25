@@ -21,6 +21,7 @@ import { L1StandardBridge } from "src/L1/L1StandardBridge.sol";
 import { StandardBridge } from "src/universal/StandardBridge.sol";
 import { OptimismPortal } from "src/L1/OptimismPortal.sol";
 import { OptimismPortal2 } from "src/L1/OptimismPortal2.sol";
+import { OptimismPortalInterop } from "src/L1/OptimismPortalInterop.sol";
 import { L1ChugSplashProxy } from "src/legacy/L1ChugSplashProxy.sol";
 import { ResolvedDelegateProxy } from "src/legacy/ResolvedDelegateProxy.sol";
 import { L1CrossDomainMessenger } from "src/L1/L1CrossDomainMessenger.sol";
@@ -28,6 +29,7 @@ import { L2OutputOracle } from "src/L1/L2OutputOracle.sol";
 import { OptimismMintableERC20Factory } from "src/universal/OptimismMintableERC20Factory.sol";
 import { SuperchainConfig } from "src/L1/SuperchainConfig.sol";
 import { SystemConfig } from "src/L1/SystemConfig.sol";
+import { SystemConfigInterop } from "src/L1/SystemConfigInterop.sol";
 import { ResourceMetering } from "src/L1/ResourceMetering.sol";
 import { DataAvailabilityChallenge } from "src/L1/DataAvailabilityChallenge.sol";
 import { Constants } from "src/libraries/Constants.sol";
@@ -636,20 +638,20 @@ contract Deploy is Deployer {
     /// @notice Deploy the OptimismPortal
     function deployOptimismPortal() public broadcast returns (address addr_) {
         console.log("Deploying OptimismPortal implementation");
-
-        OptimismPortal portal = new OptimismPortal{ salt: _implSalt() }();
-
-        save("OptimismPortal", address(portal));
-        console.log("OptimismPortal deployed at %s", address(portal));
+        if (cfg.useInterop()) {
+            addr_ = address(new OptimismPortalInterop{ salt: _implSalt() }());
+        } else {
+            addr_ = address(new OptimismPortal{ salt: _implSalt() }());
+        }
+        save("OptimismPortal", addr_);
+        console.log("OptimismPortal deployed at %s", addr_);
 
         // Override the `OptimismPortal` contract to the deployed implementation. This is necessary
         // to check the `OptimismPortal` implementation alongside dependent contracts, which
         // are always proxies.
         Types.ContractSet memory contracts = _proxiesUnstrict();
-        contracts.OptimismPortal = address(portal);
+        contracts.OptimismPortal = addr_;
         ChainAssertions.checkOptimismPortal({ _contracts: contracts, _cfg: cfg, _isProxy: false });
-
-        addr_ = address(portal);
     }
 
     /// @notice Deploy the OptimismPortal2
@@ -811,19 +813,20 @@ contract Deploy is Deployer {
     /// @notice Deploy the SystemConfig
     function deploySystemConfig() public broadcast returns (address addr_) {
         console.log("Deploying SystemConfig implementation");
-        SystemConfig config = new SystemConfig{ salt: _implSalt() }();
-
-        save("SystemConfig", address(config));
-        console.log("SystemConfig deployed at %s", address(config));
+        if (cfg.useInterop()) {
+            addr_ = address(new SystemConfigInterop{ salt: _implSalt() }());
+        } else {
+            addr_ = address(new SystemConfig{ salt: _implSalt() }());
+        }
+        save("SystemConfig", addr_);
+        console.log("SystemConfig deployed at %s", addr_);
 
         // Override the `SystemConfig` contract to the deployed implementation. This is necessary
         // to check the `SystemConfig` implementation alongside dependent contracts, which
         // are always proxies.
         Types.ContractSet memory contracts = _proxiesUnstrict();
-        contracts.SystemConfig = address(config);
+        contracts.SystemConfig = addr_;
         ChainAssertions.checkSystemConfig({ _contracts: contracts, _cfg: cfg, _isProxy: false });
-
-        addr_ = address(config);
     }
 
     /// @notice Deploy the L1StandardBridge
