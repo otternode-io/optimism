@@ -56,6 +56,7 @@ import { Types } from "scripts/Types.sol";
 import { LibStateDiff } from "scripts/libraries/LibStateDiff.sol";
 import { EIP1967Helper } from "test/mocks/EIP1967Helper.sol";
 import { ForgeArtifacts } from "scripts/ForgeArtifacts.sol";
+import { Process } from "scripts/libraries/Process.sol";
 
 /// @title Deploy
 /// @notice Script used to deploy a bedrock system. The entire system is deployed within the `run` function.
@@ -79,6 +80,7 @@ contract Deploy is Deployer {
         Claim absolutePrestate;
         IBigStepper faultVm;
         uint256 maxGameDepth;
+        Duration maxClockDuration;
     }
 
     ////////////////////////////////////////////////////////////////
@@ -288,7 +290,11 @@ contract Deploy is Deployer {
         setupSuperchain();
         console.log("set up superchain!");
         if (cfg.usePlasma()) {
-            setupOpPlasma();
+            bytes32 typeHash = keccak256(bytes(cfg.daCommitmentType()));
+            bytes32 keccakHash = keccak256(bytes("KeccakCommitment"));
+            if (typeHash == keccakHash) {
+                setupOpPlasma();
+            }
         }
         setupOpChain();
         console.log("set up op chain!");
@@ -338,6 +344,7 @@ contract Deploy is Deployer {
         initializeImplementations();
 
         setAlphabetFaultGameImplementation({ _allowUpgrade: false });
+        setFastFaultGameImplementation({ _allowUpgrade: false });
         setCannonFaultGameImplementation({ _allowUpgrade: false });
         setPermissionedCannonFaultGameImplementation({ _allowUpgrade: false });
 
@@ -356,9 +363,9 @@ contract Deploy is Deployer {
         deployERC1967Proxy("OptimismMintableERC20FactoryProxy");
         deployERC1967Proxy("L1ERC721BridgeProxy");
 
-        // Both the DisputeGameFactory and L2OutputOracle proxies are deployed regardles of whether FPAC is enabled
-        // to prevent a nastier refactor to the deploy scripts. In the future, the L2OutputOracle will be removed. If
-        // fault proofs are not enabled, the DisputeGameFactory proxy will be unused.
+        // Both the DisputeGameFactory and L2OutputOracle proxies are deployed regardless of whether fault proofs is
+        // enabled to prevent a nastier refactor to the deploy scripts. In the future, the L2OutputOracle will be
+        // removed. If fault proofs are not enabled, the DisputeGameFactory proxy will be unused.
         deployERC1967Proxy("DisputeGameFactoryProxy");
         deployERC1967Proxy("L2OutputOracleProxy");
         deployERC1967Proxy("DelayedWETHProxy");
@@ -391,10 +398,9 @@ contract Deploy is Deployer {
     function initializeImplementations() public {
         console.log("Initializing implementations");
         // Selectively initialize either the original OptimismPortal or the new OptimismPortal2. Since this will upgrade
-        // the proxy, we cannot initialize both. FPAC warning can be removed once we're done with the old OptimismPortal
-        // contract.
+        // the proxy, we cannot initialize both.
         if (cfg.useFaultProofs()) {
-            console.log("WARNING: FPAC is enabled. Initializing the OptimismPortal proxy with the OptimismPortal2.");
+            console.log("Fault proofs enabled. Initializing the OptimismPortal proxy with the OptimismPortal2.");
             initializeOptimismPortal2();
         } else {
             initializeOptimismPortal();
@@ -445,7 +451,8 @@ contract Deploy is Deployer {
         public
         returns (address addr_)
     {
-        console.log("Deploying safe: %s ", _name);
+        bytes32 salt = keccak256(abi.encode(_name, _implSalt()));
+        console.log("Deploying safe: %s with salt %s", _name, vm.toString(salt));
         (SafeProxyFactory safeProxyFactory, Safe safeSingleton) = _getSafeFactory();
 
         address[] memory expandedOwners = new address[](_owners.length + 1);
@@ -462,11 +469,7 @@ contract Deploy is Deployer {
         bytes memory initData = abi.encodeCall(
             Safe.setup, (_owners, _threshold, address(0), hex"", address(0), address(0), 0, payable(address(0)))
         );
-        addr_ = address(
-            safeProxyFactory.createProxyWithNonce(
-                address(safeSingleton), initData, uint256(keccak256(abi.encode(_name)))
-            )
-        );
+        addr_ = address(safeProxyFactory.createProxyWithNonce(address(safeSingleton), initData, uint256(salt)));
 
         save(_name, addr_);
         console.log("New safe: %s deployed at %s\n    Note that this safe is owned by the deployer key", _name, addr_);
@@ -954,7 +957,7 @@ contract Deploy is Deployer {
         address anchorStateRegistryProxy = mustGetAddress("AnchorStateRegistryProxy");
         address anchorStateRegistry = mustGetAddress("AnchorStateRegistry");
 
-        AnchorStateRegistry.StartingAnchorRoot[] memory roots = new AnchorStateRegistry.StartingAnchorRoot[](4);
+        AnchorStateRegistry.StartingAnchorRoot[] memory roots = new AnchorStateRegistry.StartingAnchorRoot[](5);
         roots[0] = AnchorStateRegistry.StartingAnchorRoot({
             gameType: GameTypes.CANNON,
             outputRoot: OutputRoot({
@@ -978,6 +981,13 @@ contract Deploy is Deployer {
         });
         roots[3] = AnchorStateRegistry.StartingAnchorRoot({
             gameType: GameTypes.ASTERISC,
+            outputRoot: OutputRoot({
+                root: Hash.wrap(cfg.faultGameGenesisOutputRoot()),
+                l2BlockNumber: cfg.faultGameGenesisBlock()
+            })
+        });
+        roots[4] = AnchorStateRegistry.StartingAnchorRoot({
+            gameType: GameTypes.FAST,
             outputRoot: OutputRoot({
                 root: Hash.wrap(cfg.faultGameGenesisOutputRoot()),
                 l2BlockNumber: cfg.faultGameGenesisBlock()
@@ -1341,11 +1351,11 @@ contract Deploy is Deployer {
             commands[0] = "bash";
             commands[1] = "-c";
             commands[2] = string.concat("[[ -f ", filePath, " ]] && echo \"present\"");
-            if (vm.ffi(commands).length == 0) {
+            if (Process.run(commands).length == 0) {
                 revert("Cannon prestate dump not found, generate it with `make cannon-prestate` in the monorepo root.");
             }
             commands[2] = string.concat("cat ", filePath, " | jq -r .pre");
-            mipsAbsolutePrestate_ = Claim.wrap(abi.decode(vm.ffi(commands), (bytes32)));
+            mipsAbsolutePrestate_ = Claim.wrap(abi.decode(Process.run(commands), (bytes32)));
             console.log(
                 "[Cannon Dispute Game] Using devnet MIPS Absolute prestate: %s",
                 vm.toString(Claim.unwrap(mipsAbsolutePrestate_))
@@ -1374,7 +1384,8 @@ contract Deploy is Deployer {
                 gameType: GameTypes.CANNON,
                 absolutePrestate: loadMipsAbsolutePrestate(),
                 faultVm: IBigStepper(mustGetAddress("Mips")),
-                maxGameDepth: cfg.faultGameMaxDepth()
+                maxGameDepth: cfg.faultGameMaxDepth(),
+                maxClockDuration: Duration.wrap(uint64(cfg.faultGameMaxClockDuration()))
             })
         });
     }
@@ -1395,7 +1406,8 @@ contract Deploy is Deployer {
                 gameType: GameTypes.PERMISSIONED_CANNON,
                 absolutePrestate: loadMipsAbsolutePrestate(),
                 faultVm: IBigStepper(mustGetAddress("Mips")),
-                maxGameDepth: cfg.faultGameMaxDepth()
+                maxGameDepth: cfg.faultGameMaxDepth(),
+                maxClockDuration: Duration.wrap(uint64(cfg.faultGameMaxClockDuration()))
             })
         });
     }
@@ -1417,8 +1429,32 @@ contract Deploy is Deployer {
                 absolutePrestate: outputAbsolutePrestate,
                 faultVm: IBigStepper(new AlphabetVM(outputAbsolutePrestate, PreimageOracle(mustGetAddress("PreimageOracle")))),
                 // The max depth for the alphabet trace is always 3. Add 1 because split depth is fully inclusive.
-                maxGameDepth: cfg.faultGameSplitDepth() + 3 + 1
+                maxGameDepth: cfg.faultGameSplitDepth() + 3 + 1,
+                maxClockDuration: Duration.wrap(uint64(cfg.faultGameMaxClockDuration()))
             })
+        });
+    }
+
+    /// @notice Sets the implementation for the `ALPHABET` game type in the `DisputeGameFactory`
+    function setFastFaultGameImplementation(bool _allowUpgrade) public onlyDevnet broadcast {
+        console.log("Setting Fast FaultDisputeGame implementation");
+        DisputeGameFactory factory = DisputeGameFactory(mustGetAddress("DisputeGameFactoryProxy"));
+        DelayedWETH weth = DelayedWETH(mustGetAddress("DelayedWETHProxy"));
+
+        Claim outputAbsolutePrestate = Claim.wrap(bytes32(cfg.faultGameAbsolutePrestate()));
+        _setFaultGameImplementation({
+            _factory: factory,
+            _allowUpgrade: _allowUpgrade,
+            _params: FaultDisputeGameParams({
+                anchorStateRegistry: AnchorStateRegistry(mustGetAddress("AnchorStateRegistryProxy")),
+                weth: weth,
+                gameType: GameTypes.FAST,
+                absolutePrestate: outputAbsolutePrestate,
+                faultVm: IBigStepper(new AlphabetVM(outputAbsolutePrestate, PreimageOracle(mustGetAddress("PreimageOracle")))),
+                // The max depth for the alphabet trace is always 3. Add 1 because split depth is fully inclusive.
+                maxGameDepth: cfg.faultGameSplitDepth() + 3 + 1,
+                maxClockDuration: Duration.wrap(0) // Resolvable immediately
+             })
         });
     }
 
@@ -1448,7 +1484,7 @@ contract Deploy is Deployer {
                     _maxGameDepth: _params.maxGameDepth,
                     _splitDepth: cfg.faultGameSplitDepth(),
                     _clockExtension: Duration.wrap(uint64(cfg.faultGameClockExtension())),
-                    _maxClockDuration: Duration.wrap(uint64(cfg.faultGameMaxClockDuration())),
+                    _maxClockDuration: _params.maxClockDuration,
                     _vm: _params.faultVm,
                     _weth: _params.weth,
                     _anchorStateRegistry: _params.anchorStateRegistry,
